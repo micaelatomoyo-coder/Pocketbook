@@ -1,0 +1,38 @@
+
+{
+  "entities": {
+    "Generation": {
+      "title": "Generation",
+      "description": "Records of PDF imposition generations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner of the generation record" },
+        "fileName": { "type": "string", "description": "Original file name" },
+        "preset": { "type": "string", "description": "Imposition preset used" },
+        "pageCount": { "type": "number", "description": "Number of pages in original PDF" },
+        "sheetsGenerated": { "type": "number", "description": "Number of A4 sheets generated" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of generation" }
+      },
+      "required": ["userId", "fileName", "preset", "pageCount", "sheetsGenerated", "createdAt"]
+    },
+    "UsageStats": {
+      "title": "UsageStats",
+      "description": "Global usage statistics",
+      "type": "object",
+      "properties": {
+        "totalGenerations": { "type": "number", "description": "Total number of PDFs generated across all users" }
+      },
+      "required": ["totalGenerations"]
+    }
+  },
+  "firestore": {
+    "/generations/{generationId}": {
+      "schema": "Generation",
+      "description": "User specific generation history"
+    },
+    "/stats/global": {
+      "schema": "UsageStats",
+      "description": "Global application stats"
+    }
+  }
+}

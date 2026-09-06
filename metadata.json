@@ -1,0 +1,6 @@
+{
+  "name": "Pocketbook Creator",
+  "description": "Crie livretos e pocket books artesanais a partir de arquivos PDF com imposição automática de páginas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

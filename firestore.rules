@@ -1,0 +1,58 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Master Gate: Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitive Definitions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 2. Validation Blueprints
+    function isValidGeneration(data) {
+      return data.userId == request.auth.uid
+        && data.fileName is string && data.fileName.size() <= 255
+        && data.preset in ['pocketbook-a6', 'mini-pocket-a7', 'booklet-a5', 'cut-stack', 'cut-stack-a6']
+        && data.pageCount is number
+        && data.sheetsGenerated is number
+        && data.createdAt == request.time;
+    }
+
+    function isValidStats(data) {
+      return data.keys().hasAll(['totalGenerations'])
+        && data.keys().size() == 1
+        && data.totalGenerations is number;
+    }
+
+    // Collections
+    match /generations/{generationId} {
+      allow create: if isSignedIn() && isValidId(generationId) && isValidGeneration(incoming());
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /stats/global {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidStats(incoming())
+        && (incoming().totalGenerations == 1 || incoming().totalGenerations == 0);
+      allow update: if isSignedIn() && isValidStats(incoming())
+        && incoming().totalGenerations == existing().totalGenerations + 1;
+    }
+  }
+}
