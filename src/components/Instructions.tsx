@@ -1,30 +1,43 @@
 
 import { Printer, Scissors, FoldVertical, RefreshCw } from 'lucide-react';
+import { ImpositionPreset } from '../types';
 
-export function Instructions() {
+interface InstructionsProps {
+  preset?: ImpositionPreset;
+}
+
+export function Instructions({ preset = 'pocketbook-a6' }: InstructionsProps) {
+  const isA6 = preset === 'pocketbook-a6';
+
   const steps = [
     {
       icon: Printer,
       title: 'Impressão Duplex',
-      desc: 'Imprima em modo "Frente e Verso". Escolha a opção "Viras na Borda Curta" (Short Edge Bind).',
-      color: 'bg-blue-50 text-blue-600'
+      desc: isA6
+        ? 'Imprima em modo "Frente e Verso". Escolha a opção "Margem Longa" (Long Edge Bind).'
+        : 'Imprima em modo "Frente e Verso". Escolha a opção "Margem Curta" (Short Edge Bind).',
+      color: isA6 ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-600'
     },
     {
       icon: RefreshCw,
       title: 'Orientação',
-      desc: 'Certifique-se de que a escala está em 100% ou "Tamanho Real" nas configurações da sua impressora.',
+      desc: isA6
+        ? 'Folha em modo Retrato (Vertical). Mantenha a escala em 100% ou "Tamanho Real".'
+        : 'Folha em modo Paisagem (Horizontal). Mantenha a escala em 100% ou "Tamanho Real".',
       color: 'bg-purple-50 text-purple-600'
     },
     {
       icon: Scissors,
-      title: 'Corte Central',
-      desc: 'Para A6, corte a folha A4 exatamente ao meio na horizontal para obter duas tiras A5.',
+      title: isA6 ? 'Corte Central A6' : 'Linhas de Corte',
+      desc: isA6
+        ? 'Corte a folha A4 exatamente ao meio na horizontal para obter duas tiras A5.'
+        : 'Corte nas linhas tracejadas centrais indicadas na folha impressa.',
       color: 'bg-orange-50 text-orange-600'
     },
     {
       icon: FoldVertical,
-      title: 'Dobra Final',
-      desc: 'Dobre as tiras A5 ao meio para formar o caderno A6. Encaixe um dentro do outro para formar o livro.',
+      title: 'Dobra e Costura',
+      desc: 'Dobre as tiras nos vincos centrais para formar os cadernos. Encaixe as folhas de cada caderno para costura copta.',
       color: 'bg-emerald-50 text-emerald-600'
     }
   ];

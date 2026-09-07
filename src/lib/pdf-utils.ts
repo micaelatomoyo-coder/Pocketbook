@@ -1,13 +1,25 @@
 
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, degrees, PDFName } from 'pdf-lib';
 
-export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato)
-export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato)
+export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato: 210 * 72 / 25.4)
+export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato: 297 * 72 / 25.4)
 export const A4_LANDSCAPE_WIDTH = 841.89; // 297mm in pt (Horizontal / Paisagem)
 export const A4_LANDSCAPE_HEIGHT = 595.28; // 210mm in pt (Horizontal / Paisagem)
 
 export const A4_WIDTH = A4_LANDSCAPE_WIDTH;
 export const A4_HEIGHT = A4_LANDSCAPE_HEIGHT;
+
+export function normalizePage(page: any, width: number, height: number) {
+  page.setSize(width, height);
+  page.setRotation(degrees(0));
+  try {
+    if (page.node && typeof page.node.delete === 'function') {
+      page.node.delete(PDFName.of('Rotate'));
+    }
+  } catch {
+    // 0 degrees guaranteed
+  }
+}
 
 export async function createImposition(
   pdfBuffer: ArrayBuffer,
@@ -29,11 +41,13 @@ export async function createImposition(
       
       // Front Page (A4 Retrato)
       const frontPage = outPdf.addPage([A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT]);
+      normalizePage(frontPage, A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT);
       const frontIndices = [base + 7, base + 0, base + 5, base + 2]; // 8, 1, 6, 3 (0-indexed: 7, 0, 5, 2)
       await drawQuadrants(sourcePdf, outPdf, frontPage, frontIndices, addCropMarks);
 
       // Back Page (A4 Retrato)
       const backPage = outPdf.addPage([A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT]);
+      normalizePage(backPage, A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT);
       const backIndices = [base + 1, base + 6, base + 3, base + 4]; // 2, 7, 4, 5 (0-indexed: 1, 6, 3, 4)
       await drawQuadrants(sourcePdf, outPdf, backPage, backIndices, addCropMarks);
     }
@@ -49,9 +63,11 @@ export async function createImposition(
       // Sheet 1 Front: [4, 1]
       // Sheet 1 Back: [2, 3]
       const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      normalizePage(frontPage, A4_WIDTH, A4_HEIGHT);
       await drawHalves(sourcePdf, outPdf, frontPage, [base + 3, base + 0], addCropMarks);
 
       const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      normalizePage(backPage, A4_WIDTH, A4_HEIGHT);
       await drawHalves(sourcePdf, outPdf, backPage, [base + 1, base + 2], addCropMarks);
     }
   } else if (preset === 'cut-stack-a6') {
@@ -66,8 +82,10 @@ export async function createImposition(
     for (let s = 0; s < sheetsCount; s++) {
       const base = s * multiplier;
       const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      normalizePage(frontPage, A4_WIDTH, A4_HEIGHT);
       await drawQuadrants(sourcePdf, outPdf, frontPage, [base + 0, base + 1, base + 2, base + 3], addCropMarks);
       const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      normalizePage(backPage, A4_WIDTH, A4_HEIGHT);
       await drawQuadrants(sourcePdf, outPdf, backPage, [base + 4, base + 5, base + 6, base + 7], addCropMarks);
     }
   }

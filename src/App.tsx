@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PngExportModal } from './components/PngExportModal';
+import { PrintInstructionsAlert } from './components/PrintInstructionsAlert';
 import { renderImposedPdfToPngs, downloadPngsIndividually, downloadPngsAsZip } from './lib/exportPng';
 
 export default function App() {
@@ -639,6 +640,9 @@ export default function App() {
                 )}
               </div>
 
+              {/* Instruções Dinâmicas de Impressão (Duplex) conforme o modelo selecionado */}
+              <PrintInstructionsAlert preset={config.preset} />
+
               {/* Zero-RAM CSS/HTML Structural Preview */}
               <Preview 
                 config={config}
@@ -649,7 +653,7 @@ export default function App() {
             </section>
 
             {/* Practical Craft Instructions */}
-            <Instructions />
+            <Instructions preset={config.preset} />
 
           </div>
 
@@ -669,6 +673,7 @@ export default function App() {
         isExporting={isExportingPng}
         exportProgress={pngProgress}
         statusMessage={pngStatusMessage}
+        preset={config.preset}
       />
 
       {/* Footer */}

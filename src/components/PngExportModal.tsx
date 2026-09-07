@@ -9,6 +9,7 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
+import { ImpositionPreset } from '../types';
 
 interface PngExportModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface PngExportModalProps {
   isExporting: boolean;
   exportProgress: number;
   statusMessage: string;
+  preset?: ImpositionPreset;
 }
 
 export const PngExportModal: FC<PngExportModalProps> = ({
@@ -28,10 +30,13 @@ export const PngExportModal: FC<PngExportModalProps> = ({
   isExporting,
   exportProgress,
   statusMessage,
+  preset = 'pocketbook-a6',
 }) => {
   if (!isOpen) return null;
 
   const totalImages = totalSheets * 2;
+  const isA6 = preset === 'pocketbook-a6';
+  const dimensionsText = isA6 ? '2480 × 3508 px (A4 Retrato)' : '3508 × 2480 px (A4 Paisagem)';
 
   return (
     <AnimatePresence>
@@ -68,7 +73,7 @@ export const PngExportModal: FC<PngExportModalProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 font-medium">
-                  3508 × 2480 px (A4 Paisagem) para impressão sem margem
+                  {dimensionsText} para impressão sem margem
                 </p>
               </div>
             </div>
@@ -108,7 +113,7 @@ export const PngExportModal: FC<PngExportModalProps> = ({
                   {statusMessage || 'Renderizando imagens em 300 DPI...'}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Processando com dimensões de 3508 × 2480 pixels
+                  Processando com dimensões de {dimensionsText}
                 </p>
               </div>
 
@@ -178,12 +183,22 @@ export const PngExportModal: FC<PngExportModalProps> = ({
             </div>
           )}
 
-          {/* Dica de Impressão Sem Margem Solicitada */}
-          <div className="p-3 bg-amber-50/80 border border-amber-200/90 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900">
-            <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="leading-relaxed text-[11.5px]">
-              <span className="font-bold">Dica:</span> Use o formato PNG para ativar a opção <strong>"Imprimir sem margem"</strong> nas configurações da sua impressora.
-            </p>
+          {/* Dica de Impressão Sem Margem e Duplex Dinâmica */}
+          <div className={`p-3 rounded-2xl border flex items-start gap-2.5 text-xs ${
+            isA6 ? 'bg-amber-50/90 border-amber-200/90 text-amber-950' : 'bg-sky-50/90 border-sky-200/90 text-sky-950'
+          }`}>
+            <Printer size={16} className={`shrink-0 mt-0.5 ${isA6 ? 'text-amber-600' : 'text-sky-600'}`} />
+            <div className="space-y-0.5 text-[11.5px] leading-relaxed">
+              <p>
+                <strong>Frente e Verso:</strong> Configure a impressora em{' '}
+                <span className="font-bold underline">{isA6 ? 'Margem Longa' : 'Margem Curta'}</span>.
+              </p>
+              <p className="opacity-90">
+                <span className="font-bold">Dica:</span> Em imagens PNG, selecione{' '}
+                <span className="italic font-semibold">"Preencher página"</span> ou{' '}
+                <span className="italic font-semibold">"Sem margem"</span>.
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>

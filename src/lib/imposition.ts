@@ -1,13 +1,29 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, degrees, PDFName } from 'pdf-lib';
 import { ImpositionPreset, ImpositionConfig, ImpositionStats, SignatureSetting } from '../types';
 
-export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato)
-export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato)
+export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato: 210 * 72 / 25.4)
+export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato: 297 * 72 / 25.4)
 export const A4_LANDSCAPE_WIDTH = 841.89; // 297mm in pt (Horizontal / Paisagem)
 export const A4_LANDSCAPE_HEIGHT = 595.28; // 210mm in pt (Horizontal / Paisagem)
 
 export const A4_WIDTH = A4_LANDSCAPE_WIDTH;
 export const A4_HEIGHT = A4_LANDSCAPE_HEIGHT;
+
+/**
+ * Normaliza rigorosamente o canvas da página gerada para impedir tags de rotação (/Rotate)
+ * e garantir sistema de coordenadas 0° voltado para cima com dimensões exatas.
+ */
+export function normalizePage(page: any, width: number, height: number) {
+  page.setSize(width, height);
+  page.setRotation(degrees(0));
+  try {
+    if (page.node && typeof page.node.delete === 'function') {
+      page.node.delete(PDFName.of('Rotate'));
+    }
+  } catch {
+    // setRotation(degrees(0)) já normatizou o dicionário
+  }
+}
 
 /**
  * Sanitizes and strips any leading BOM, whitespace, or preamble before the %PDF- header.
@@ -363,6 +379,7 @@ export async function gerarImposicaoA7(
 
   // --- FRENTE A4 (Paisagem) ---
   const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+  normalizePage(frontPage, A4_WIDTH, A4_HEIGHT);
   addSlugHeader(frontPage, caderno.sigNumber, sheetIndexInSig + 1, 'Frente');
   drawGuides(frontPage, 'octants');
 
@@ -380,6 +397,7 @@ export async function gerarImposicaoA7(
 
   // --- VERSO A4 (Com espelhamento de colunas para virada na Borda Curta) ---
   const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+  normalizePage(backPage, A4_WIDTH, A4_HEIGHT);
   addSlugHeader(backPage, caderno.sigNumber, sheetIndexInSig + 1, 'Verso');
   drawGuides(backPage, 'octants');
 
@@ -501,6 +519,8 @@ export async function createImposedPDF(
   function drawGuides(targetPage: any, type: 'halves' | 'quadrants' | 'octants') {
     if (!config.addCropMarks && !config.addFoldGuides) return;
 
+    const pageW = targetPage.getWidth();
+    const pageH = targetPage.getHeight();
     const cutColor = rgb(0.7, 0.7, 0.72);
     const foldColor = rgb(0.78, 0.78, 0.82);
 
@@ -508,8 +528,8 @@ export async function createImposedPDF(
       // Booklet A5: center vertical fold
       if (config.addFoldGuides) {
         targetPage.drawLine({
-          start: { x: A4_WIDTH / 2, y: 0 },
-          end: { x: A4_WIDTH / 2, y: A4_HEIGHT },
+          start: { x: pageW / 2, y: 0 },
+          end: { x: pageW / 2, y: pageH },
           thickness: 0.5,
           color: foldColor,
           dashArray: [4, 4],
@@ -517,11 +537,11 @@ export async function createImposedPDF(
       }
     } else if (type === 'quadrants') {
       // Pocketbook A6 or Cut & Stack
-      // Horizontal cut line in center
+      // Horizontal cut line in exact center
       if (config.addCropMarks) {
         targetPage.drawLine({
-          start: { x: 0, y: A4_HEIGHT / 2 },
-          end: { x: A4_WIDTH, y: A4_HEIGHT / 2 },
+          start: { x: 0, y: pageH / 2 },
+          end: { x: pageW, y: pageH / 2 },
           thickness: 0.5,
           color: cutColor,
         });
@@ -530,8 +550,8 @@ export async function createImposedPDF(
       const isFold = config.preset === 'pocketbook-a6';
       if (isFold ? config.addFoldGuides : config.addCropMarks) {
         targetPage.drawLine({
-          start: { x: A4_WIDTH / 2, y: 0 },
-          end: { x: A4_WIDTH / 2, y: A4_HEIGHT },
+          start: { x: pageW / 2, y: 0 },
+          end: { x: pageW / 2, y: pageH },
           thickness: 0.5,
           color: isFold ? foldColor : cutColor,
           dashArray: isFold ? [4, 4] : undefined,
@@ -542,14 +562,14 @@ export async function createImposedPDF(
       // Cuts: Horizontal center + Vertical center
       if (config.addCropMarks) {
         targetPage.drawLine({
-          start: { x: 0, y: A4_HEIGHT / 2 },
-          end: { x: A4_WIDTH, y: A4_HEIGHT / 2 },
+          start: { x: 0, y: pageH / 2 },
+          end: { x: pageW, y: pageH / 2 },
           thickness: 0.5,
           color: cutColor,
         });
         targetPage.drawLine({
-          start: { x: A4_WIDTH / 2, y: 0 },
-          end: { x: A4_WIDTH / 2, y: A4_HEIGHT },
+          start: { x: pageW / 2, y: 0 },
+          end: { x: pageW / 2, y: pageH },
           thickness: 0.5,
           color: cutColor,
         });
@@ -557,35 +577,31 @@ export async function createImposedPDF(
       // Folds: Vertical at W/4 and 3W/4
       if (config.addFoldGuides) {
         targetPage.drawLine({
-          start: { x: A4_WIDTH / 4, y: 0 },
-          end: { x: A4_WIDTH / 4, y: A4_HEIGHT },
+          start: { x: pageW / 4, y: 0 },
+          end: { x: pageW / 4, y: pageH },
           thickness: 0.5,
           color: foldColor,
           dashArray: [3, 3],
         });
         targetPage.drawLine({
-          start: { x: (3 * A4_WIDTH) / 4, y: 0 },
-          end: { x: (3 * A4_WIDTH) / 4, y: A4_HEIGHT },
+          start: { x: (3 * pageW) / 4, y: 0 },
+          end: { x: (3 * pageW) / 4, y: pageH },
           thickness: 0.5,
           color: foldColor,
           dashArray: [3, 3],
         });
       }
     }
-
-    // Slug indicator line at outer top edge
-    if (config.addSignatureLabels) {
-      // Slug text will be added per sheet
-    }
   }
 
   function addSlugHeader(targetPage: any, sigNum: number, sheetNum: number, side: 'Frente' | 'Verso') {
     if (!config.addSignatureLabels) return;
+    const pageH = targetPage.getHeight();
     const sheetsInThisSig = stats.signatureSheets[sigNum - 1] || stats.sheetsPerSignature;
     const text = `CADERNO ${sigNum}/${stats.signaturesCount} | FOLHA ${sheetNum}/${sheetsInThisSig} (${side}) - Pocketbook Creator`;
     targetPage.drawText(text, {
       x: 14,
-      y: A4_HEIGHT - 12,
+      y: pageH - 12,
       size: 6,
       font: fontBold,
       color: rgb(0.55, 0.55, 0.6),
@@ -621,6 +637,7 @@ export async function createImposedPDF(
       for (let k = 0; k < sheetsInSig; k++) {
         // --- FRENTE ---
         const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        normalizePage(frontPage, A4_WIDTH, A4_HEIGHT);
         addSlugHeader(frontPage, caderno.sigNumber, k + 1, 'Frente');
         drawGuides(frontPage, 'halves');
 
@@ -629,6 +646,7 @@ export async function createImposedPDF(
 
         // --- VERSO ---
         const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        normalizePage(backPage, A4_WIDTH, A4_HEIGHT);
         addSlugHeader(backPage, caderno.sigNumber, k + 1, 'Verso');
         drawGuides(backPage, 'halves');
 
@@ -651,31 +669,49 @@ export async function createImposedPDF(
       }
     } else if (config.preset === 'pocketbook-a6') {
       const M = 2 * sheetsInSig;
-      // Estrutura A6 em A4 Vertical (Portrait): 595.28 pt (largura) x 841.89 pt (altura)
-      const sheetW = A4_PORTRAIT_WIDTH;
-      const sheetH = A4_PORTRAIT_HEIGHT;
-      const qW = sheetW / 2; // 297.64 pt
-      const qH = sheetH / 2; // 420.945 pt
+      // Estrutura A6 em A4 estritamente Retrato (Portrait: 210mm x 297mm)
+      // Página 1 (Frente) e Página 2 (Verso) possuem EXATAMENTE as mesmas dimensões:
+      const sheetW = A4_PORTRAIT_WIDTH; // 595.28 pt (210 mm)
+      const sheetH = A4_PORTRAIT_HEIGHT; // 841.89 pt (297 mm)
+      const qW = sheetW / 2; // 297.64 pt (105 mm)
+      const qH = sheetH / 2; // 420.945 pt (148.5 mm)
 
       for (let k = 0; k < sheetsInSig; k++) {
         const topStrip = k;
         const bottomStrip = M - 1 - k;
 
-        // --- FRENTE (A4 Vertical) ---
+        // --- PÁGINA FRENTE (A4 RETRATO: 210mm x 297mm) ---
+        // Sistema de coordenadas virado para cima (0°), sem atributo /Rotate
         const frontPage = outPdf.addPage([sheetW, sheetH]);
+        normalizePage(frontPage, sheetW, sheetH);
         addSlugHeader(frontPage, caderno.sigNumber, k + 1, 'Frente');
         drawGuides(frontPage, 'quadrants');
 
+        // Frente Grid 2x2:
+        // Topo: [ Esquerda (N - 2*topStrip - 1) | Direita (2*topStrip) ]
+        // Base: [ Esquerda (N - 2*bottomStrip - 1) | Direita (2*bottomStrip) ]
         await drawSourcePageOrBlank(frontPage, pagesInSig[N - 2 * topStrip - 1], { x: 0, y: qH, width: qW, height: qH });
         await drawSourcePageOrBlank(frontPage, pagesInSig[2 * topStrip], { x: qW, y: qH, width: qW, height: qH });
         await drawSourcePageOrBlank(frontPage, pagesInSig[N - 2 * bottomStrip - 1], { x: 0, y: 0, width: qW, height: qH });
         await drawSourcePageOrBlank(frontPage, pagesInSig[2 * bottomStrip], { x: qW, y: 0, width: qW, height: qH });
 
-        // --- VERSO (A4 Vertical) ---
+        // --- PÁGINA VERSO (A4 RETRATO: 210mm x 297mm - DUPLEX MARGEM LONGA) ---
+        // Na virada pela margem longa em folha Retrato (flip vertical), as colunas se espelham horizontalmente:
+        // Coluna Esquerda vira Direita, Coluna Direita vira Esquerda.
+        // O Topo permanece no Topo e a Base permanece na Base.
+        // Coincidência física perfeita frente-e-verso:
+        // - Atrás da Pág 1 (Frente Top-Right) fica a Pág 2 (Verso Top-Left)
+        // - Atrás da Pág N (Frente Top-Left) fica a Pág N-1 (Verso Top-Right)
+        // - Atrás da Pág 3 (Frente Bot-Right) fica a Pág 4 (Verso Bot-Left)
+        // - Atrás da Pág N-2 (Frente Bot-Left) fica a Pág N-3 (Verso Bot-Right)
         const backPage = outPdf.addPage([sheetW, sheetH]);
+        normalizePage(backPage, sheetW, sheetH);
         addSlugHeader(backPage, caderno.sigNumber, k + 1, 'Verso');
         drawGuides(backPage, 'quadrants');
 
+        // Verso Grid 2x2:
+        // Topo: [ Esquerda (2*topStrip + 1) | Direita (N - 2*topStrip - 2) ]
+        // Base: [ Esquerda (2*bottomStrip + 1) | Direita (N - 2*bottomStrip - 2) ]
         await drawSourcePageOrBlank(backPage, pagesInSig[2 * topStrip + 1], { x: 0, y: qH, width: qW, height: qH });
         await drawSourcePageOrBlank(backPage, pagesInSig[N - 2 * topStrip - 2], { x: qW, y: qH, width: qW, height: qH });
         await drawSourcePageOrBlank(backPage, pagesInSig[2 * bottomStrip + 1], { x: 0, y: 0, width: qW, height: qH });
@@ -727,6 +763,7 @@ export async function createImposedPDF(
       for (let k = 0; k < sheetsInSig; k++) {
         // --- FRENTE ---
         const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        normalizePage(frontPage, A4_WIDTH, A4_HEIGHT);
         addSlugHeader(frontPage, caderno.sigNumber, k + 1, 'Frente');
         drawGuides(frontPage, 'quadrants');
 
@@ -737,6 +774,7 @@ export async function createImposedPDF(
 
         // --- VERSO ---
         const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        normalizePage(backPage, A4_WIDTH, A4_HEIGHT);
         addSlugHeader(backPage, caderno.sigNumber, k + 1, 'Verso');
         drawGuides(backPage, 'quadrants');
 
