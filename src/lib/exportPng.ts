@@ -22,7 +22,9 @@ export interface PngExportProgress {
 }
 
 /**
- * Renderiza todas as páginas do PDF imposto para imagens PNG de 3508 x 2480 pixels (A4 Paisagem @ 300 DPI).
+ * Renderiza todas as páginas do PDF imposto para imagens PNG em 300 DPI:
+ * - A4 Retrato: 2480 x 3508 pixels (para A6 e folhas em orientação vertical)
+ * - A4 Paisagem: 3508 x 2480 pixels (para A5, A7 e folhas em orientação horizontal)
  * Ideal para impressão sem margem física na impressora.
  */
 export async function renderImposedPdfToPngs(
@@ -33,13 +35,10 @@ export async function renderImposedPdfToPngs(
   const pdfDoc = await loadingTask.promise;
   const totalPages = pdfDoc.numPages;
 
-  const TARGET_WIDTH = 3508;
-  const TARGET_HEIGHT = 2480;
-
   // Reusable canvas to prevent memory leaks on high-resolution rendering
   const canvas = document.createElement('canvas');
-  canvas.width = TARGET_WIDTH;
-  canvas.height = TARGET_HEIGHT;
+  canvas.width = 3508;
+  canvas.height = 2480;
   const ctx = canvas.getContext('2d', { alpha: false });
 
   if (!ctx) {
@@ -67,12 +66,23 @@ export async function renderImposedPdfToPngs(
 
     const page = await pdfDoc.getPage(pageNum);
     const unscaledViewport = page.getViewport({ scale: 1.0 });
-    const scale = TARGET_WIDTH / unscaledViewport.width;
+
+    // Detecta orientação nativa da folha gerada no PDF (Retrato ou Paisagem)
+    const isPortrait = unscaledViewport.height > unscaledViewport.width;
+    const targetWidth = isPortrait ? 2480 : 3508;
+    const targetHeight = isPortrait ? 3508 : 2480;
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
+
+    const scale = targetWidth / unscaledViewport.width;
     const viewport = page.getViewport({ scale });
 
     // Fundo branco sólido para impressão sem margem
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
 
     await page.render({
       canvasContext: ctx,

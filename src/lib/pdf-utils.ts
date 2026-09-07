@@ -1,8 +1,13 @@
 
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
 
-export const A4_WIDTH = 841.89; // Landscape
-export const A4_HEIGHT = 595.28; // Landscape
+export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato)
+export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato)
+export const A4_LANDSCAPE_WIDTH = 841.89; // 297mm in pt (Horizontal / Paisagem)
+export const A4_LANDSCAPE_HEIGHT = 595.28; // 210mm in pt (Horizontal / Paisagem)
+
+export const A4_WIDTH = A4_LANDSCAPE_WIDTH;
+export const A4_HEIGHT = A4_LANDSCAPE_HEIGHT;
 
 export async function createImposition(
   pdfBuffer: ArrayBuffer,
@@ -15,21 +20,20 @@ export async function createImposition(
   const totalPages = pages.length;
 
   if (preset === 'pocketbook-a6') {
-    // 8 pages per sheet (4 front, 4 back)
+    // 8 pages per sheet (4 front, 4 back) - A4 Vertical (Portrait)
     const multiplier = 8;
     const sheetsCount = Math.ceil(totalPages / multiplier);
-    const paddedPagesCount = sheetsCount * multiplier;
 
     for (let s = 0; s < sheetsCount; s++) {
       const base = s * multiplier;
       
-      // Front Page
-      const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      // Front Page (A4 Retrato)
+      const frontPage = outPdf.addPage([A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT]);
       const frontIndices = [base + 7, base + 0, base + 5, base + 2]; // 8, 1, 6, 3 (0-indexed: 7, 0, 5, 2)
       await drawQuadrants(sourcePdf, outPdf, frontPage, frontIndices, addCropMarks);
 
-      // Back Page
-      const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+      // Back Page (A4 Retrato)
+      const backPage = outPdf.addPage([A4_PORTRAIT_WIDTH, A4_PORTRAIT_HEIGHT]);
       const backIndices = [base + 1, base + 6, base + 3, base + 4]; // 2, 7, 4, 5 (0-indexed: 1, 6, 3, 4)
       await drawQuadrants(sourcePdf, outPdf, backPage, backIndices, addCropMarks);
     }
@@ -78,8 +82,10 @@ async function drawQuadrants(
   indices: number[],
   addCropMarks: boolean
 ) {
-  const qW = A4_WIDTH / 2;
-  const qH = A4_HEIGHT / 2;
+  const pW = targetPage.getWidth();
+  const pH = targetPage.getHeight();
+  const qW = pW / 2;
+  const qH = pH / 2;
 
   // Top-Left, Top-Right, Bottom-Left, Bottom-Right
   const positions = [
@@ -95,7 +101,6 @@ async function drawQuadrants(
       const [embeddedPage] = await outPdf.embedPages([sourcePdf.getPage(idx)]);
       const { width, height } = embeddedPage;
       const scale = Math.min(qW / width, qH / height);
-      
       const drawW = width * scale;
       const drawH = height * scale;
       const offsetX = (qW - drawW) / 2;
@@ -115,7 +120,7 @@ async function drawQuadrants(
     // Vertical line
     targetPage.drawLine({
       start: { x: qW, y: 0 },
-      end: { x: qW, y: A4_HEIGHT },
+      end: { x: qW, y: pH },
       thickness: 0.5,
       color,
       dashArray: [5, 5],
@@ -123,7 +128,7 @@ async function drawQuadrants(
     // Horizontal line
     targetPage.drawLine({
       start: { x: 0, y: qH },
-      end: { x: A4_WIDTH, y: qH },
+      end: { x: pW, y: qH },
       thickness: 0.5,
       color,
       dashArray: [5, 5],

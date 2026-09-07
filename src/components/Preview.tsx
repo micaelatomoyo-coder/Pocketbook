@@ -186,6 +186,7 @@ interface SheetCardProps {
 function SheetCard({ title, slugText, layout, slots, side }: SheetCardProps) {
   const isA5 = layout.gridRows === 1 && layout.gridCols === 2;
   const isA7 = layout.gridCols === 4;
+  const isPortrait = layout.orientation === 'portrait';
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200/90 p-3 sm:p-4 shadow-xs">
@@ -200,12 +201,14 @@ function SheetCard({ title, slugText, layout, slots, side }: SheetCardProps) {
           <h5 className="text-xs font-bold text-gray-900 tracking-wide">{title}</h5>
         </div>
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-          A4 Paisagem (297 × 210 mm)
+          {isPortrait ? 'A4 Retrato (210 × 297 mm)' : 'A4 Paisagem (297 × 210 mm)'}
         </span>
       </div>
 
-      {/* Simulação da Folha A4 em Paisagem */}
-      <div className="relative w-full aspect-[1.414/1] bg-slate-50 rounded-xl border border-gray-300/80 p-2.5 flex flex-col justify-between overflow-hidden shadow-inner">
+      {/* Simulação da Folha A4 em Retrato ou Paisagem */}
+      <div className={`relative w-full ${
+        isPortrait ? 'aspect-[1/1.414]' : 'aspect-[1.414/1]'
+      } bg-slate-50 rounded-xl border border-gray-300/80 p-2.5 flex flex-col justify-between overflow-hidden shadow-inner`}>
         {/* Carimbo de Margem (Slug Header) */}
         <div className="w-full flex items-center justify-between pb-1.5 border-b border-gray-200/60 select-none">
           <span className="text-[9px] sm:text-[10px] font-mono font-bold text-gray-500 truncate">
@@ -287,7 +290,7 @@ function SheetCard({ title, slugText, layout, slots, side }: SheetCardProps) {
         {/* Rodapé da Folha com Marcações */}
         <div className="w-full flex items-center justify-between pt-1 border-t border-gray-200/50 text-[8px] sm:text-[9px] text-gray-400 font-mono">
           <span>Margem de Sangria: 0mm</span>
-          <span>Orientação: Paisagem</span>
+          <span>Orientação: {isPortrait ? 'Retrato (Vertical)' : 'Paisagem (Horizontal)'}</span>
         </div>
       </div>
     </div>

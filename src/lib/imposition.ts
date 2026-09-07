@@ -1,8 +1,13 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { ImpositionPreset, ImpositionConfig, ImpositionStats, SignatureSetting } from '../types';
 
-export const A4_WIDTH = 841.89; // Landscape (297mm in pt)
-export const A4_HEIGHT = 595.28; // Landscape (210mm in pt)
+export const A4_PORTRAIT_WIDTH = 595.28; // 210mm in pt (Vertical / Retrato)
+export const A4_PORTRAIT_HEIGHT = 841.89; // 297mm in pt (Vertical / Retrato)
+export const A4_LANDSCAPE_WIDTH = 841.89; // 297mm in pt (Horizontal / Paisagem)
+export const A4_LANDSCAPE_HEIGHT = 595.28; // 210mm in pt (Horizontal / Paisagem)
+
+export const A4_WIDTH = A4_LANDSCAPE_WIDTH;
+export const A4_HEIGHT = A4_LANDSCAPE_HEIGHT;
 
 /**
  * Sanitizes and strips any leading BOM, whitespace, or preamble before the %PDF- header.
@@ -440,9 +445,14 @@ export async function createImposedPDF(
     if (pageIndex !== null && pageIndex !== undefined && pageIndex >= 0 && pageIndex < originalPages) {
       const embedded = await getEmbeddedPage(pageIndex);
       const { width, height } = embedded;
+
+      // Escala proporcional uniforme (Aspect Ratio mantido):
+      // NUNCA força width e height independentes para não esticar ou distorcer a arte.
       const scale = Math.min(box.width / width, box.height / height);
       const drawW = width * scale;
       const drawH = height * scale;
+
+      // Centralização exata da página no quadrante / célula:
       const offsetX = (box.width - drawW) / 2;
       const offsetY = (box.height - drawH) / 2;
 
@@ -641,15 +651,18 @@ export async function createImposedPDF(
       }
     } else if (config.preset === 'pocketbook-a6') {
       const M = 2 * sheetsInSig;
-      const qW = A4_WIDTH / 2;
-      const qH = A4_HEIGHT / 2;
+      // Estrutura A6 em A4 Vertical (Portrait): 595.28 pt (largura) x 841.89 pt (altura)
+      const sheetW = A4_PORTRAIT_WIDTH;
+      const sheetH = A4_PORTRAIT_HEIGHT;
+      const qW = sheetW / 2; // 297.64 pt
+      const qH = sheetH / 2; // 420.945 pt
 
       for (let k = 0; k < sheetsInSig; k++) {
         const topStrip = k;
         const bottomStrip = M - 1 - k;
 
-        // --- FRENTE ---
-        const frontPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        // --- FRENTE (A4 Vertical) ---
+        const frontPage = outPdf.addPage([sheetW, sheetH]);
         addSlugHeader(frontPage, caderno.sigNumber, k + 1, 'Frente');
         drawGuides(frontPage, 'quadrants');
 
@@ -658,8 +671,8 @@ export async function createImposedPDF(
         await drawSourcePageOrBlank(frontPage, pagesInSig[N - 2 * bottomStrip - 1], { x: 0, y: 0, width: qW, height: qH });
         await drawSourcePageOrBlank(frontPage, pagesInSig[2 * bottomStrip], { x: qW, y: 0, width: qW, height: qH });
 
-        // --- VERSO ---
-        const backPage = outPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        // --- VERSO (A4 Vertical) ---
+        const backPage = outPdf.addPage([sheetW, sheetH]);
         addSlugHeader(backPage, caderno.sigNumber, k + 1, 'Verso');
         drawGuides(backPage, 'quadrants');
 
@@ -777,6 +790,8 @@ export interface StructuralSheetLayout {
   totalA4Sheets: number;
   gridRows: number;
   gridCols: number;
+  orientation: 'portrait' | 'landscape';
+  sheetDimensions: { width: number; height: number };
   hasHorizontalCut: boolean;
   hasVerticalCut: boolean;
   hasVerticalFold: boolean;
@@ -962,6 +977,10 @@ export function getStructuralSheetLayout(
     totalA4Sheets,
     gridRows,
     gridCols,
+    orientation: config.preset === 'pocketbook-a6' ? 'portrait' : 'landscape',
+    sheetDimensions: config.preset === 'pocketbook-a6' 
+      ? { width: A4_PORTRAIT_WIDTH, height: A4_PORTRAIT_HEIGHT }
+      : { width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT },
     hasHorizontalCut,
     hasVerticalCut,
     hasVerticalFold,
